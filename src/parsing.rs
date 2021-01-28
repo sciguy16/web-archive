@@ -31,12 +31,7 @@ fn walk_dom(url_base: &Url, node: &Handle) -> Vec<ResourceUrl> {
 
     // Determine what type of node it is
     match &node.data {
-        NodeData::Element {
-            name,
-            attrs,
-            template_contents,
-            ..
-        } => match name.local {
+        NodeData::Element { name, attrs, .. } => match name.local {
             local_name!("img") => {
                 // <img src="/images/fun.png" />
                 for attr in attrs.borrow().iter() {
@@ -191,6 +186,7 @@ mod test {
         <html>
             <head>
                 <link rel="stylesheet" type="text/css" href="/style.css" />
+                <link rel="something_else" href="NOT_ALLOWED" />
             </head>
             <body>
                 <div id="content">
@@ -237,11 +233,158 @@ mod test {
     }
 
     #[test]
-    fn test_deep_nesting() {}
+    fn test_deep_nesting() {
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <script language="javascript" src="/js.js"></script>
+                <link rel="stylesheet" href="1.css" type="text/css" />
+            </head>
+            <body>
+                <div id="content">
+                    <div><div><div>
+                            <img src="1.png" />
+                        </div></div>
+                        <script src="2.js"></script>
+                    </div>
+                    <div><div>
+                        <img src="2.tiff" />
+                    </div></div>
+                </div>
+            </body>
+        </html>
+        "#;
+
+        let resource_urls = parse_resource_urls(&u(), &html).unwrap();
+
+        assert_eq!(resource_urls.len(), 5);
+        assert_eq!(
+            resource_urls[0],
+            ResourceUrl::Javascript(
+                Url::parse("http://example.com/js.js").unwrap()
+            )
+        );
+        assert_eq!(
+            resource_urls[1],
+            ResourceUrl::Css(Url::parse("http://example.com/1.css").unwrap())
+        );
+        assert_eq!(
+            resource_urls[2],
+            ResourceUrl::Image(Url::parse("http://example.com/1.png").unwrap())
+        );
+        assert_eq!(
+            resource_urls[3],
+            ResourceUrl::Javascript(
+                Url::parse("http://example.com/2.js").unwrap()
+            )
+        );
+        assert_eq!(
+            resource_urls[4],
+            ResourceUrl::Image(
+                Url::parse("http://example.com/2.tiff").unwrap()
+            )
+        );
+    }
 
     #[test]
-    fn test_relative_paths() {}
+    fn test_relative_paths() {
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+            <head></head>
+            <body>
+                <div id="content">
+                    <img src="../../images/fun.png" />
+                    <img src="/absolute_path.jpg" />
+        <img src="https://www.rust-lang.org/static/images/rust-logo-blk.svg" />
+                </div>
+            </body>
+        </html>
+        "#;
+
+        let u = Url::parse("http://example.com/one/two/three/four/").unwrap();
+        let resource_urls = parse_resource_urls(&u, &html).unwrap();
+
+        assert_eq!(resource_urls.len(), 3);
+        assert_eq!(
+            resource_urls[0],
+            ResourceUrl::Image(
+                Url::parse("http://example.com/one/two/images/fun.png")
+                    .unwrap()
+            )
+        );
+        assert_eq!(
+            resource_urls[1],
+            ResourceUrl::Image(
+                Url::parse("http://example.com/absolute_path.jpg").unwrap()
+            )
+        );
+        assert_eq!(
+            resource_urls[2],
+            ResourceUrl::Image(
+                Url::parse(
+                    "https://www.rust-lang.org/static/images/rust-logo-blk.svg"
+                )
+                .unwrap()
+            )
+        );
+    }
 
     #[test]
-    fn test_malformed_html() {}
+    fn test_upper_case_tags() {
+        let html = r#"
+        <HTML>
+            <HEAD>
+                <SCRIPT LANGUAGE="javascript" SRC="/js.js"></SCRIPT>
+            </HEAD>
+            <BODY>
+                <DIV ID="content">
+                </DIV>
+            </BODY>
+        </HTML>
+        "#;
+
+        let resource_urls = parse_resource_urls(&u(), &html).unwrap();
+
+        assert_eq!(resource_urls.len(), 1);
+        assert_eq!(
+            resource_urls[0],
+            ResourceUrl::Javascript(
+                Url::parse("http://example.com/js.js").unwrap()
+            )
+        );
+    }
+
+    #[test]
+    fn test_malformed_html() {
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <script language="javascript" src="/js.js"></script>
+            </head>
+            <body>
+                <div id="content">
+                    <p>Closing paragraphs is for losers
+                    <p><img src="a.jpg">
+                </div>
+            </body>
+        </html>
+        "#;
+
+        let resource_urls = parse_resource_urls(&u(), &html).unwrap();
+
+        assert_eq!(resource_urls.len(), 2);
+        assert_eq!(
+            resource_urls[0],
+            ResourceUrl::Javascript(
+                Url::parse("http://example.com/js.js").unwrap()
+            )
+        );
+        assert_eq!(
+            resource_urls[1],
+            ResourceUrl::Image(Url::parse("http://example.com/a.jpg").unwrap())
+        );
+    }
 }
