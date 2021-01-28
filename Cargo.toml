@@ -13,6 +13,7 @@ blocking = ["reqwest/blocking"]
 [dependencies]
 bytes = "1.0.1"
 html5ever = "0.25.1"
+lazy_static = "1.4.0"
 markup5ever = "0.10.0"
 markup5ever_rcdom = "0.1.0"
 reqwest = "0.11.0"

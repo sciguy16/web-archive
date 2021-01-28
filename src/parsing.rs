@@ -2,10 +2,20 @@ use crate::error::Error;
 use bytes::Bytes;
 use html5ever::tendril::{Tendril, TendrilSink};
 use html5ever::{parse_document, ParseOpts};
+use lazy_static::lazy_static;
 use markup5ever::{local_name, Namespace, QualName};
 use markup5ever_rcdom::{Handle, NodeData, RcDom};
 use std::collections::HashMap;
 use url::Url;
+
+lazy_static! {
+    static ref SRC: QualName =
+        QualName::new(None, Namespace::from(""), local_name!("src"),);
+    static ref REL: QualName =
+        QualName::new(None, Namespace::from(""), local_name!("rel"),);
+    static ref HREF: QualName =
+        QualName::new(None, Namespace::from(""), local_name!("href"),);
+}
 
 pub(crate) fn parse_resource_urls(
     url_base: &Url,
@@ -20,7 +30,11 @@ pub(crate) fn parse_resource_urls(
         .read_from(&mut buf)?;
 
     // Recursively walk the DOM, collecting any supported resource URLs
-    let resource_urls = walk_dom(&url_base, &parsed.document);
+    let mut resource_urls = walk_dom(&url_base, &parsed.document);
+
+    // Dedup the URLs to avoid fetching the same one twice
+    resource_urls.sort();
+    resource_urls.dedup();
 
     Ok(resource_urls)
 }
@@ -35,12 +49,7 @@ fn walk_dom(url_base: &Url, node: &Handle) -> Vec<ResourceUrl> {
             local_name!("img") => {
                 // <img src="/images/fun.png" />
                 for attr in attrs.borrow().iter() {
-                    let src = QualName::new(
-                        None,
-                        Namespace::from(""),
-                        local_name!("src"),
-                    );
-                    if attr.name == src {
+                    if attr.name == *SRC {
                         // "join" just sets the default base URL to be
                         // `url_base`. If `attr.value` is a fully
                         // qualified URL then that will override the
@@ -55,12 +64,7 @@ fn walk_dom(url_base: &Url, node: &Handle) -> Vec<ResourceUrl> {
             local_name!("script") => {
                 // <script language="javascript" src="/js.js"></script>
                 for attr in attrs.borrow().iter() {
-                    let src = QualName::new(
-                        None,
-                        Namespace::from(""),
-                        local_name!("src"),
-                    );
-                    if attr.name == src {
+                    if attr.name == *SRC {
                         // "join" just sets the default base URL to be
                         // `url_base`. If `attr.value` is a fully
                         // qualified URL then that will override the
@@ -79,17 +83,7 @@ fn walk_dom(url_base: &Url, node: &Handle) -> Vec<ResourceUrl> {
                 let mut is_stylesheet = false;
                 let mut url: Option<Url> = None;
                 for attr in attrs.borrow().iter() {
-                    let rel = QualName::new(
-                        None,
-                        Namespace::from(""),
-                        local_name!("rel"),
-                    );
-                    let href: QualName = QualName::new(
-                        None,
-                        Namespace::from(""),
-                        local_name!("href"),
-                    );
-                    if attr.name == href {
+                    if attr.name == *HREF {
                         // "join" just sets the default base URL to be
                         // `url_base`. If `attr.value` is a fully
                         // qualified URL then that will override the
@@ -97,7 +91,7 @@ fn walk_dom(url_base: &Url, node: &Handle) -> Vec<ResourceUrl> {
                         if let Ok(u) = url_base.join(&attr.value) {
                             url = Some(u);
                         }
-                    } else if attr.name == rel {
+                    } else if attr.name == *REL {
                         if attr.value == Tendril::from("stylesheet") {
                             is_stylesheet = true;
                         }
@@ -130,11 +124,28 @@ fn walk_dom(url_base: &Url, node: &Handle) -> Vec<ResourceUrl> {
     resource_urls
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Ord)]
 pub enum ResourceUrl {
     Javascript(Url),
     Css(Url),
     Image(Url),
+}
+
+impl ResourceUrl {
+    pub fn url(&self) -> &Url {
+        use ResourceUrl::*;
+        match self {
+            Javascript(u) => &u,
+            Css(u) => &u,
+            Image(u) => &u,
+        }
+    }
+}
+
+impl PartialOrd for ResourceUrl {
+    fn partial_cmp(&self, rhs: &ResourceUrl) -> Option<std::cmp::Ordering> {
+        Some(self.url().cmp(rhs.url()))
+    }
 }
 
 pub type ResourceMap = HashMap<Url, Resource>;
@@ -258,33 +269,23 @@ mod test {
 
         let resource_urls = parse_resource_urls(&u(), &html).unwrap();
 
-        assert_eq!(resource_urls.len(), 5);
-        assert_eq!(
-            resource_urls[0],
+        let mut test_urls = vec![
             ResourceUrl::Javascript(
-                Url::parse("http://example.com/js.js").unwrap()
-            )
-        );
-        assert_eq!(
-            resource_urls[1],
-            ResourceUrl::Css(Url::parse("http://example.com/1.css").unwrap())
-        );
-        assert_eq!(
-            resource_urls[2],
-            ResourceUrl::Image(Url::parse("http://example.com/1.png").unwrap())
-        );
-        assert_eq!(
-            resource_urls[3],
+                Url::parse("http://example.com/js.js").unwrap(),
+            ),
+            ResourceUrl::Css(Url::parse("http://example.com/1.css").unwrap()),
+            ResourceUrl::Image(Url::parse("http://example.com/1.png").unwrap()),
             ResourceUrl::Javascript(
-                Url::parse("http://example.com/2.js").unwrap()
-            )
-        );
-        assert_eq!(
-            resource_urls[4],
+                Url::parse("http://example.com/2.js").unwrap(),
+            ),
             ResourceUrl::Image(
-                Url::parse("http://example.com/2.tiff").unwrap()
-            )
-        );
+                Url::parse("http://example.com/2.tiff").unwrap(),
+            ),
+        ];
+        test_urls.sort();
+
+        assert_eq!(resource_urls.len(), 5);
+        assert_eq!(resource_urls, test_urls,);
     }
 
     #[test]
@@ -305,30 +306,25 @@ mod test {
 
         let u = Url::parse("http://example.com/one/two/three/four/").unwrap();
         let resource_urls = parse_resource_urls(&u, &html).unwrap();
-
-        assert_eq!(resource_urls.len(), 3);
-        assert_eq!(
-            resource_urls[0],
+        let mut test_urls = vec![
             ResourceUrl::Image(
                 Url::parse("http://example.com/one/two/images/fun.png")
-                    .unwrap()
-            )
-        );
-        assert_eq!(
-            resource_urls[1],
+                    .unwrap(),
+            ),
             ResourceUrl::Image(
-                Url::parse("http://example.com/absolute_path.jpg").unwrap()
-            )
-        );
-        assert_eq!(
-            resource_urls[2],
+                Url::parse("http://example.com/absolute_path.jpg").unwrap(),
+            ),
             ResourceUrl::Image(
                 Url::parse(
-                    "https://www.rust-lang.org/static/images/rust-logo-blk.svg"
+                    "https://www.rust-lang.org/static/images/rust-logo-blk.svg",
                 )
-                .unwrap()
-            )
-        );
+                .unwrap(),
+            ),
+        ];
+        test_urls.sort();
+
+        assert_eq!(resource_urls.len(), 3);
+        assert_eq!(resource_urls, test_urls);
     }
 
     #[test]
@@ -374,17 +370,15 @@ mod test {
         "#;
 
         let resource_urls = parse_resource_urls(&u(), &html).unwrap();
+        let mut test_urls = vec![
+            ResourceUrl::Javascript(
+                Url::parse("http://example.com/js.js").unwrap(),
+            ),
+            ResourceUrl::Image(Url::parse("http://example.com/a.jpg").unwrap()),
+        ];
+        test_urls.sort();
 
         assert_eq!(resource_urls.len(), 2);
-        assert_eq!(
-            resource_urls[0],
-            ResourceUrl::Javascript(
-                Url::parse("http://example.com/js.js").unwrap()
-            )
-        );
-        assert_eq!(
-            resource_urls[1],
-            ResourceUrl::Image(Url::parse("http://example.com/a.jpg").unwrap())
-        );
+        assert_eq!(resource_urls, test_urls);
     }
 }
