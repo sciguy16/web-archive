@@ -48,3 +48,22 @@ where
         resource_map,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_invalid_url_blocking() {
+        let u = "this~is~not~a~url";
+
+        let res = archive(u);
+        assert!(res.is_err());
+
+        if let Err(Error::ParseError(_err)) = res {
+            // Okay, it's a parse error
+        } else {
+            panic!("Expected parse error");
+        }
+    }
+}

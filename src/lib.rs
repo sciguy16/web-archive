@@ -78,22 +78,3 @@ mod tests {
         }
     }
 }
-
-#[cfg(all(test, feature = "blocking"))]
-mod tests_blocking {
-    use super::*;
-
-    #[test]
-    fn parse_invalid_url_blocking() {
-        let u = "this~is~not~a~url";
-
-        let res = blocking::archive(u);
-        assert!(res.is_err());
-
-        if let Err(Error::ParseError(_err)) = res {
-            // Okay, it's a parse error
-        } else {
-            panic!("Expected parse error");
-        }
-    }
-}

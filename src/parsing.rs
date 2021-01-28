@@ -150,7 +150,7 @@ impl PartialOrd for ResourceUrl {
 
 pub type ResourceMap = HashMap<Url, Resource>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Resource {
     Javascript(String),
     Css(String),

@@ -1,0 +1,12 @@
+[package]
+name = "dynamic_tests"
+version = "0.1.0"
+authors = ["David Young <david@thedavidyoung.co.uk>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rocket = "0.4.6"
+url = "2.2.0"
+web-archive = { path = "..", features = ["blocking"] }
