@@ -1,0 +1,20 @@
+[package]
+name = "web-archive"
+version = "0.1.0"
+authors = ["David Young <david.young@nccgroup.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+blocking = ["reqwest/blocking"]
+
+[dependencies]
+bytes = "1.0.1"
+html5ever = "0.25.1"
+markup5ever_rcdom = "0.1.0"
+reqwest = "0.11.0"
+url = "2.2.0"
+
+[dev-dependencies]
+tokio-test = "0.4.0"
