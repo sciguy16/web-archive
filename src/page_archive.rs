@@ -3,6 +3,7 @@ use bytes::Bytes;
 use std::io;
 use std::path::Path;
 
+#[derive(Debug)]
 pub struct PageArchive {
     pub content: String,
     pub resource_map: ResourceMap,

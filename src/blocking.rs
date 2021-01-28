@@ -18,10 +18,10 @@ where
     let client = reqwest::blocking::Client::new();
 
     // Fetch the page contents
-    let content = client.get(url).send()?.text()?;
+    let content = client.get(url.clone()).send()?.text()?;
 
     // Determine the resources that the page needs
-    let resource_urls = parse_resource_urls(&content)?;
+    let resource_urls = parse_resource_urls(&url, &content)?;
     let mut resource_map = ResourceMap::new();
 
     // Download them

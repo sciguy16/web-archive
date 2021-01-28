@@ -25,10 +25,10 @@ where
     let client = reqwest::Client::new();
 
     // Fetch the page contents
-    let content = client.get(url).send().await?.text().await?;
+    let content = client.get(url.clone()).send().await?.text().await?;
 
     // Determine the resources that the page needs
-    let resource_urls = parse_resource_urls(&content)?;
+    let resource_urls = parse_resource_urls(&url, &content)?;
 
     // Download them
     let mut resource_map = ResourceMap::new();
@@ -84,7 +84,7 @@ mod tests_blocking {
     use super::*;
 
     #[test]
-    fn parse_invalid_url_async() {
+    fn parse_invalid_url_blocking() {
         let u = "this~is~not~a~url";
 
         let res = blocking::archive(u);
