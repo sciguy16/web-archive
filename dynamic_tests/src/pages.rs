@@ -1,4 +1,6 @@
 use rocket::get;
+use rocket::http::Status;
+use rocket::response::{status, Responder};
 
 #[get("/")]
 pub fn index() -> &'static str {
@@ -47,8 +49,8 @@ pub fn style() -> &'static str {
 }
 
 #[get("/images/rust-logo-blk.svg")]
-pub fn rust_logo() -> &'static str {
-    include_str!("../resources/rust-logo-blk.svg")
+pub fn rust_logo() -> &'static [u8] {
+    include_bytes!("../resources/rust-logo-blk.svg")
 }
 
 #[get("/images/rustacean-flat-happy.png")]
@@ -62,4 +64,23 @@ pub fn js() -> &'static str {
 		console.log("Here is some javascript!");
 	}
 	"#
+}
+
+#[get("/500.jpg")]
+pub fn err_500() -> impl Responder<'static> {
+    status::Custom(Status::InternalServerError, "This is an error!")
+}
+
+#[get("/500.html")]
+pub fn page_with_500_resource() -> &'static str {
+    r#"<html>
+		<head>
+			<link rel="stylesheet" href="style.css" />
+		</head>
+		<body>
+			<div>
+				<img src="/500.jpg" />
+			</div>
+		</body>
+	</html>"#
 }

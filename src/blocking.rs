@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::page_archive::PageArchive;
 use crate::parsing::{parse_resource_urls, Resource, ResourceMap, ResourceUrl};
+use reqwest::StatusCode;
 use std::convert::TryInto;
 use std::fmt::Display;
 use url::Url;
@@ -27,18 +28,22 @@ where
     // Download them
     for resource_url in resource_urls {
         use ResourceUrl::*;
+
+        let response = client.get(resource_url.url().clone()).send()?;
+        if response.status() != StatusCode::OK {
+            // Skip any errors
+            println!("Code: {}", response.status());
+            continue;
+        }
         match resource_url {
             Image(u) => {
-                let content = client.get(u.clone()).send()?.bytes()?;
-                resource_map.insert(u, Resource::Image(content));
+                resource_map.insert(u, Resource::Image(response.bytes()?));
             }
             Css(u) => {
-                let content = client.get(u.clone()).send()?.text()?;
-                resource_map.insert(u, Resource::Css(content));
+                resource_map.insert(u, Resource::Css(response.text()?));
             }
             Javascript(u) => {
-                let content = client.get(u.clone()).send()?.text()?;
-                resource_map.insert(u, Resource::Javascript(content));
+                resource_map.insert(u, Resource::Javascript(response.text()?));
             }
         }
     }

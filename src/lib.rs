@@ -1,6 +1,7 @@
 pub use error::Error;
 pub use page_archive::PageArchive;
 use parsing::{parse_resource_urls, Resource, ResourceMap, ResourceUrl};
+use reqwest::StatusCode;
 use std::convert::TryInto;
 use std::fmt::Display;
 use url::Url;
@@ -34,21 +35,23 @@ where
     let mut resource_map = ResourceMap::new();
     for resource_url in resource_urls {
         use ResourceUrl::*;
+
+        let response = client.get(resource_url.url().clone()).send().await?;
+        if response.status() != StatusCode::OK {
+            // Skip any errors
+            continue;
+        }
         match resource_url {
             Image(u) => {
-                let content =
-                    client.get(u.clone()).send().await?.bytes().await?;
-                resource_map.insert(u, Resource::Image(content));
+                resource_map
+                    .insert(u, Resource::Image(response.bytes().await?));
             }
             Css(u) => {
-                let content =
-                    client.get(u.clone()).send().await?.text().await?;
-                resource_map.insert(u, Resource::Css(content));
+                resource_map.insert(u, Resource::Css(response.text().await?));
             }
             Javascript(u) => {
-                let content =
-                    client.get(u.clone()).send().await?.text().await?;
-                resource_map.insert(u, Resource::Javascript(content));
+                resource_map
+                    .insert(u, Resource::Javascript(response.text().await?));
             }
         }
     }

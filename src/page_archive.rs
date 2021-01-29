@@ -1,5 +1,4 @@
 use crate::parsing::ResourceMap;
-use bytes::Bytes;
 use std::io;
 use std::path::Path;
 
