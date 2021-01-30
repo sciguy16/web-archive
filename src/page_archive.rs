@@ -2,7 +2,7 @@ use crate::error::Error;
 use crate::parsing::{Resource, ResourceMap};
 use html5ever::{interface::QualName, local_name, namespace_url, ns};
 use kuchiki::traits::TendrilSink;
-use kuchiki::{parse_html, Attribute, ExpandedName, NodeData, NodeRef};
+use kuchiki::{parse_html, NodeData, NodeRef};
 use std::io;
 use std::path::Path;
 use url::Url;

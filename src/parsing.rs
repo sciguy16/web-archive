@@ -59,7 +59,7 @@ pub(crate) fn parse_resource_urls(
     Ok(resource_urls)
 }
 
-#[derive(Debug, PartialEq, Eq, Ord)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ResourceUrl {
     Javascript(Url),
     Css(Url),
@@ -80,6 +80,12 @@ impl ResourceUrl {
 impl PartialOrd for ResourceUrl {
     fn partial_cmp(&self, rhs: &ResourceUrl) -> Option<std::cmp::Ordering> {
         Some(self.url().cmp(rhs.url()))
+    }
+}
+
+impl Ord for ResourceUrl {
+    fn cmp(&self, rhs: &ResourceUrl) -> std::cmp::Ordering {
+        self.url().cmp(rhs.url())
     }
 }
 
