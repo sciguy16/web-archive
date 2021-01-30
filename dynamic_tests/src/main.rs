@@ -6,7 +6,7 @@ use std::thread;
 use std::time::Duration;
 use tokio_test::block_on;
 use url::Url;
-use web_archive::parsing::Resource;
+use web_archive::parsing::{ImageResource, Resource};
 use web_archive::{archive, blocking};
 
 mod pages;
@@ -107,7 +107,10 @@ fn test_blog(mode: &Mode) -> &'static str {
                     .unwrap()
             )
             .unwrap(),
-        &Resource::Image(Bytes::copy_from_slice(rust_logo()))
+        &Resource::Image(ImageResource {
+            data: Bytes::copy_from_slice(rust_logo()),
+            mimetype: "".to_string()
+        })
     );
     assert_eq!(
         a.resource_map
@@ -118,7 +121,10 @@ fn test_blog(mode: &Mode) -> &'static str {
                 .unwrap()
             )
             .unwrap(),
-        &Resource::Image(Bytes::copy_from_slice(ferris()))
+        &Resource::Image(ImageResource {
+            data: Bytes::copy_from_slice(ferris()),
+            mimetype: "".to_string()
+        })
     );
     assert!(a
         .resource_map

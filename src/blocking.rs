@@ -1,6 +1,8 @@
 use crate::error::Error;
 use crate::page_archive::PageArchive;
-use crate::parsing::{parse_resource_urls, Resource, ResourceMap, ResourceUrl};
+use crate::parsing::{
+    parse_resource_urls, ImageResource, Resource, ResourceMap, ResourceUrl,
+};
 use reqwest::StatusCode;
 use std::convert::TryInto;
 use std::fmt::Display;
@@ -37,7 +39,13 @@ where
         }
         match resource_url {
             Image(u) => {
-                resource_map.insert(u, Resource::Image(response.bytes()?));
+                resource_map.insert(
+                    u,
+                    Resource::Image(ImageResource {
+                        data: response.bytes()?,
+                        mimetype: String::new(),
+                    }),
+                );
             }
             Css(u) => {
                 resource_map.insert(u, Resource::Css(response.text()?));

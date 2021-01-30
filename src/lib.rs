@@ -11,7 +11,9 @@
 
 pub use error::Error;
 pub use page_archive::PageArchive;
-use parsing::{parse_resource_urls, Resource, ResourceMap, ResourceUrl};
+use parsing::{
+    parse_resource_urls, ImageResource, Resource, ResourceMap, ResourceUrl,
+};
 use reqwest::StatusCode;
 use std::convert::TryInto;
 use std::fmt::Display;
@@ -54,8 +56,13 @@ where
         }
         match resource_url {
             Image(u) => {
-                resource_map
-                    .insert(u, Resource::Image(response.bytes().await?));
+                resource_map.insert(
+                    u,
+                    Resource::Image(ImageResource {
+                        data: response.bytes().await?,
+                        mimetype: String::new(),
+                    }),
+                );
             }
             Css(u) => {
                 resource_map.insert(u, Resource::Css(response.text().await?));

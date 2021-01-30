@@ -11,6 +11,7 @@ default = ["blocking"]
 blocking = ["reqwest/blocking"]
 
 [dependencies]
+base64 = "0.13.0"
 bytes = "1.0.1"
 kuchiki = "0.8.1"
 reqwest = "0.11.0"

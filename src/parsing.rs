@@ -89,7 +89,20 @@ pub type ResourceMap = HashMap<Url, Resource>;
 pub enum Resource {
     Javascript(String),
     Css(String),
-    Image(Bytes),
+    Image(ImageResource),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ImageResource {
+    pub data: Bytes,
+    pub mimetype: String,
+}
+
+impl ImageResource {
+    pub fn to_data_uri(&self) -> String {
+        let encoded = base64::encode(&self.data);
+        format!("data:{};base64,{}", self.mimetype, encoded)
+    }
 }
 
 #[cfg(test)]
@@ -98,6 +111,26 @@ mod test {
 
     fn u() -> Url {
         Url::parse("http://example.com").unwrap()
+    }
+
+    #[test]
+    fn test_image_resouce_base_64() {
+        let img = ImageResource {
+            data: Bytes::from(
+                include_bytes!(
+                    "../dynamic_tests/resources/rustacean-flat-happy.png"
+                )
+                .to_vec(),
+            ),
+            mimetype: "image/png".to_string(),
+        };
+
+        let data_uri = img.to_data_uri();
+
+        // base64 < dynamic_tests/resources/rustacean-flat-happy.png
+        assert!(data_uri
+            .starts_with("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB"));
+        assert!(data_uri.ends_with("Q/hkoEnAH1wAAAABJRU5ErkJggg=="));
     }
 
     #[test]
