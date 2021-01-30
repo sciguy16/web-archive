@@ -1,3 +1,19 @@
+//! ### Blocking
+//!
+//! This is the blocking API
+//!
+//! ```no_run
+//! use web_archive::blocking;
+//!
+//! // Fetch page and all its resources
+//! let archive = blocking::archive("http://example.com").unwrap();
+//!
+//! // Embed the resources into the page
+//! let page = archive.embed_resources();
+//! println!("{}", page);
+//!
+//! ```
+
 use crate::error::Error;
 use crate::page_archive::PageArchive;
 use crate::parsing::{
@@ -8,6 +24,11 @@ use std::convert::TryInto;
 use std::fmt::Display;
 use url::Url;
 
+/// The blocking archive function.
+///
+/// Takes in a URL and attempts to download the page and its resources.
+/// Network errors get wrapped in [`Error`] and returned as the `Err`
+/// case.
 pub fn archive<U>(url: U) -> Result<PageArchive, Error>
 where
     U: TryInto<Url>,
@@ -24,7 +45,7 @@ where
     let content = client.get(url.clone()).send()?.text()?;
 
     // Determine the resources that the page needs
-    let resource_urls = parse_resource_urls(&url, &content)?;
+    let resource_urls = parse_resource_urls(&url, &content);
     let mut resource_map = ResourceMap::new();
 
     // Download them

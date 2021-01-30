@@ -1,4 +1,5 @@
-use crate::error::Error;
+//! Module for the core archiving functionality
+
 use crate::parsing::{Resource, ResourceMap};
 use html5ever::{interface::QualName, local_name, namespace_url, ns};
 use kuchiki::traits::TendrilSink;
@@ -7,15 +8,27 @@ use std::io;
 use std::path::Path;
 use url::Url;
 
+/// Intermediate struct storing the downloaded resources
 #[derive(Debug)]
 pub struct PageArchive {
+    /// Base URL of the page being archived
     pub url: Url,
+    /// The content/body of the page
     pub content: String,
+    /// A mapping of resource URLs to the downloaded resources
     pub resource_map: ResourceMap,
 }
 
 impl PageArchive {
-    pub fn embed_resources(&self) -> Result<String, Error> {
+    /// Searches `img`, `link`, and `script` tags in the page body and
+    /// substitutes in the downloaded content.
+    ///
+    /// * Images are base-64 encoded and inserted as `data:` URIs
+    /// * Stylesheets are inserted as inline `<style>` tags, replacing
+    ///   the `<link>` tags they originated from
+    /// * Scripts are inserted into their originating `<script>` tags
+    ///   and the original `src` attribute is deleted.
+    pub fn embed_resources(&self) -> String {
         // Parse DOM again, and substitute in the downloaded resources
 
         let document = parse_html().one(self.content.as_str());
@@ -120,9 +133,12 @@ impl PageArchive {
             }
         }
 
-        Ok(document.to_string())
+        document.to_string()
     }
 
+    /// NOT YET IMPLEMENTED
+    ///
+    /// Write the downloaded resources to disk in the directory specified
     pub fn write_to_disk<P: AsRef<Path>>(
         &self,
         _output_dir: &P,
@@ -165,7 +181,7 @@ mod test {
             resource_map,
         };
 
-        let output = archive.embed_resources().unwrap();
+        let output = archive.embed_resources();
         assert_eq!(
             output.replace("\t", "").replace("\n", ""),
             r#"
@@ -215,7 +231,7 @@ mod test {
             resource_map,
         };
 
-        let output = archive.embed_resources().unwrap();
+        let output = archive.embed_resources();
         println!("{}", output);
         // base64 < dynamic_tests/resources/rustacean-flat-happy.png
         assert!(output.contains(
@@ -255,7 +271,7 @@ mod test {
             resource_map,
         };
 
-        let output = archive.embed_resources().unwrap();
+        let output = archive.embed_resources();
         assert_eq!(
             output.replace("\t", "").replace("\n", ""),
             r#"

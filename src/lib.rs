@@ -1,12 +1,51 @@
-#![warn(
-//    missing_docs,
-)]
+#![warn(missing_docs)]
+#![forbid(unsafe_code)]
+
+//! The purpose of this crate is to download a web page, then download
+//! its linked image, Javascript, and CSS resources and embed them in
+//! the HTML.
+//!
+//! Both async and blocking APIs are provided, making use of `reqwest`'s
+//! support for both. The blocking APIs are enabled with the `blocking`
+//! feature.
+//!
+//! ## Examples
+//!
+//! ### Async
+//!
+//! ```no_run
+//! use web_archive::archive;
+//!
+//! # async fn archive_async() {
+//! // Fetch page and all its resources
+//! let archive = archive("http://example.com").await.unwrap();
+//!
+//! // Embed the resources into the page
+//! let page = archive.embed_resources();
+//! println!("{}", page);
+//! # }
+//!
+//! ```
+//!
+//! ### Blocking
+//!
+//! ```no_run
+//! use web_archive::blocking;
+//!
+//! // Fetch page and all its resources
+//! let archive = blocking::archive("http://example.com").unwrap();
+//!
+//! // Embed the resources into the page
+//! let page = archive.embed_resources();
+//! println!("{}", page);
+//!
+//! ```
+//!
 
 pub use error::Error;
 pub use page_archive::PageArchive;
-use parsing::{
-    parse_resource_urls, ImageResource, Resource, ResourceMap, ResourceUrl,
-};
+use parsing::parse_resource_urls;
+pub use parsing::{ImageResource, Resource, ResourceMap, ResourceUrl};
 use reqwest::StatusCode;
 use std::convert::TryInto;
 use std::fmt::Display;
@@ -19,6 +58,11 @@ pub mod parsing;
 #[cfg(feature = "blocking")]
 pub mod blocking;
 
+/// The async archive function.
+///
+/// Takes in a URL and attempts to download the page and its resources.
+/// Network errors get wrapped in [`Error`] and returned as the `Err`
+/// case.
 pub async fn archive<U>(url: U) -> Result<PageArchive, Error>
 where
     U: TryInto<Url>,
@@ -35,7 +79,7 @@ where
     let content = client.get(url.clone()).send().await?.text().await?;
 
     // Determine the resources that the page needs
-    let resource_urls = parse_resource_urls(&url, &content)?;
+    let resource_urls = parse_resource_urls(&url, &content);
 
     // Download them
     let mut resource_map = ResourceMap::new();

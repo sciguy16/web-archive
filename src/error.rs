@@ -1,8 +1,15 @@
+//! Module for the error parsing functionality
+
 use std::string::FromUtf8Error;
 
+/// Error type used by `web_archive` to wrap the errors returned by
+/// operations in this crate or errors from other sources (e.g. URL
+/// parsing or network errors).
 #[derive(Debug)]
 pub enum Error {
+	/// Some kind of parsing error
     ParseError(String),
+    /// Error fetching a resource
     ReqwestError(String),
 }
 

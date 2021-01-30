@@ -1,14 +1,16 @@
-use crate::error::Error;
+//! Module for the core parsing functionality
+
 use bytes::Bytes;
 use kuchiki::traits::TendrilSink;
 use kuchiki::{parse_html, NodeData};
 use std::collections::HashMap;
 use url::Url;
 
+/// Search image, style, and script resources and store their URIs
 pub(crate) fn parse_resource_urls(
     url_base: &Url,
     page: &str,
-) -> Result<Vec<ResourceUrl>, Error> {
+) -> Vec<ResourceUrl> {
     let document = parse_html().one(page);
 
     // Collect resource URLs for each element type
@@ -56,17 +58,22 @@ pub(crate) fn parse_resource_urls(
     resource_urls.sort();
     resource_urls.dedup();
 
-    Ok(resource_urls)
+    resource_urls
 }
 
+/// Tag the resource URLs with the type of resource they correspond to
 #[derive(Debug, PartialEq, Eq)]
 pub enum ResourceUrl {
+    /// Javascript files
     Javascript(Url),
+    /// CSS files
     Css(Url),
+    /// Image files
     Image(Url),
 }
 
 impl ResourceUrl {
+    /// Returns a reference to the inner [`Url`]
     pub fn url(&self) -> &Url {
         use ResourceUrl::*;
         match self {
@@ -89,22 +96,34 @@ impl Ord for ResourceUrl {
     }
 }
 
+/// Newtype wrapper around [`HashMap`], mapping between resource URLs
+/// and the downloaded file contents
 pub type ResourceMap = HashMap<Url, Resource>;
 
+/// Generic resource type
 #[derive(Debug, PartialEq, Eq)]
 pub enum Resource {
+    /// Javascript is stored as a String
     Javascript(String),
+    /// Stylesheets are stored as a String
     Css(String),
+    /// Images are stored as an [`ImageResource`] to allow the mimetype
+    /// metadata to be useful
     Image(ImageResource),
 }
 
+/// Data type representing an image
 #[derive(Debug, PartialEq, Eq)]
 pub struct ImageResource {
+    /// Raw image data
     pub data: Bytes,
+    /// Mime type of the image, e.g. `image/png`
     pub mimetype: String,
 }
 
 impl ImageResource {
+    /// Encode the image data as base 64 and embed it into a `data:` URI,
+    /// e.g. `data:image/png;base64,iVBORw0...`.
     pub fn to_data_uri(&self) -> String {
         let encoded = base64::encode(&self.data);
         format!("data:{};base64,{}", self.mimetype, encoded)
@@ -153,7 +172,7 @@ mod test {
         </html>
         "#;
 
-        let resource_urls = parse_resource_urls(&u(), &html).unwrap();
+        let resource_urls = parse_resource_urls(&u(), &html);
 
         assert_eq!(resource_urls.len(), 1);
         assert_eq!(
@@ -180,7 +199,7 @@ mod test {
         </html>
         "#;
 
-        let resource_urls = parse_resource_urls(&u(), &html).unwrap();
+        let resource_urls = parse_resource_urls(&u(), &html);
 
         assert_eq!(resource_urls.len(), 1);
         assert_eq!(
@@ -206,7 +225,7 @@ mod test {
         </html>
         "#;
 
-        let resource_urls = parse_resource_urls(&u(), &html).unwrap();
+        let resource_urls = parse_resource_urls(&u(), &html);
 
         assert_eq!(resource_urls.len(), 1);
         assert_eq!(
@@ -241,7 +260,7 @@ mod test {
         </html>
         "#;
 
-        let resource_urls = parse_resource_urls(&u(), &html).unwrap();
+        let resource_urls = parse_resource_urls(&u(), &html);
 
         let mut test_urls = vec![
             ResourceUrl::Javascript(
@@ -279,7 +298,7 @@ mod test {
         "#;
 
         let u = Url::parse("http://example.com/one/two/three/four/").unwrap();
-        let resource_urls = parse_resource_urls(&u, &html).unwrap();
+        let resource_urls = parse_resource_urls(&u, &html);
         let mut test_urls = vec![
             ResourceUrl::Image(
                 Url::parse("http://example.com/one/two/images/fun.png")
@@ -315,7 +334,7 @@ mod test {
         </HTML>
         "#;
 
-        let resource_urls = parse_resource_urls(&u(), &html).unwrap();
+        let resource_urls = parse_resource_urls(&u(), &html);
 
         assert_eq!(resource_urls.len(), 1);
         assert_eq!(
@@ -343,7 +362,7 @@ mod test {
         </html>
         "#;
 
-        let resource_urls = parse_resource_urls(&u(), &html).unwrap();
+        let resource_urls = parse_resource_urls(&u(), &html);
         let mut test_urls = vec![
             ResourceUrl::Javascript(
                 Url::parse("http://example.com/js.js").unwrap(),
