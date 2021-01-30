@@ -1,7 +1,8 @@
 use crate::error::Error;
 use crate::parsing::{Resource, ResourceMap};
+use html5ever::{interface::QualName, local_name, namespace_url, ns};
 use kuchiki::traits::TendrilSink;
-use kuchiki::{parse_html, NodeData, NodeRef};
+use kuchiki::{parse_html, Attribute, ExpandedName, NodeData, NodeRef};
 use std::io;
 use std::path::Path;
 use url::Url;
@@ -40,6 +41,59 @@ impl PageArchive {
             }
         }
 
+        // Replace CSS
+        for element in document.select("link").unwrap() {
+            let node = element.as_node();
+
+            // Create a place to store the css data reference so that
+            // the horribly nested borrows can be dropped before we
+            // replace the `<link>` element with a `<style>`.
+            let mut css_data: Option<&String> = None;
+
+            if let NodeData::Element(data) = node.data() {
+                // node is an 'element'
+                let attr = data.attributes.borrow();
+                if Some("stylesheet") == attr.get("rel") {
+                    // rel="stylesheet"
+                    if let Some(u) = attr.get("href") {
+                        // href="style.css"
+                        if let Ok(u) = self.url.join(u) {
+                            // href parses properly
+                            if let Some(Resource::Css(css)) =
+                                self.resource_map.get(&u)
+                            {
+                                // we have a stored copy of the CSS
+                                css_data = Some(css);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let Some(css) = css_data {
+                // CSS data was successfully retrieved by the above steps,
+                // so now:
+                // * locate the `<link>`'s parent
+                // * create a new `<style>` tag containg the CSS
+                // * attach it to the parent
+                // * delete the original `<link>` tag
+
+                if let Some(parent) = node.parent() {
+                    // This probably won't ever fail, but if it does then
+                    // ignore it
+                    let style = NodeRef::new_element(
+                        QualName::new(None, ns!(html), local_name!("style")),
+                        None,
+                    );
+                    style.append(NodeRef::new_text(css));
+                    parent.append(style);
+
+                    // Remove the original `<link>` tag
+                    node.detach();
+                }
+            }
+        }
+
         // Replace scripts
         for element in document.select("script").unwrap() {
             let node = element.as_node();
@@ -58,7 +112,10 @@ impl PageArchive {
                         }
                     }
                 }
-                // Remove the original 'src' attribute
+                // Remove the original 'src' attribute - doesn't matter
+                // whether we managed to archive it or not because
+                // external resources won't be reachable from the archived
+                // page
                 let _ = attr.remove("src");
             }
         }
@@ -80,7 +137,7 @@ mod test {
     use crate::*;
     use bytes::Bytes;
 
-    //#[test]
+    #[test]
     fn test_single_css() {
         let content = r#"
 		<html>
@@ -109,7 +166,22 @@ mod test {
         };
 
         let output = archive.embed_resources().unwrap();
-        assert_eq!(output, "".to_string());
+        assert_eq!(
+            output.replace("\t", "").replace("\n", ""),
+            r#"
+		<html>
+			<head>
+				<style>
+					body { background-color: blue; }
+				</style>
+			</head>
+			<body></body>
+		</html>
+		"#
+            .to_string()
+            .replace("\t", "")
+            .replace("\n", "")
+        );
     }
 
     #[test]
