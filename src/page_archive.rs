@@ -1,12 +1,8 @@
 use crate::error::Error;
 use crate::parsing::ResourceMap;
-use crate::parsing::SRC;
-use html5ever::tendril::{Tendril, TendrilSink};
-use html5ever::{parse_document, serialize, ParseOpts};
-use lazy_static::lazy_static;
-use markup5ever::{local_name, Namespace, QualName};
-use markup5ever_rcdom::{Handle, NodeData, RcDom, SerializableHandle};
-
+use kuchiki::traits::TendrilSink;
+use kuchiki::{parse_html, NodeData, Selector};
+use std::borrow::BorrowMut;
 use std::io;
 use std::path::Path;
 use url::Url;
@@ -20,22 +16,24 @@ pub struct PageArchive {
 
 impl PageArchive {
     pub fn embed_resources(&self) -> Result<String, Error> {
-        // Parse the DOM again, then walk over it editing the image,
-        // script, and link tags to embed their resources
-        let mut buf = self.content.as_bytes();
-        let parse_opts: ParseOpts = Default::default();
+        // Parse DOM again, and substitute in the downloaded resources
 
-        let mut parsed = parse_document(RcDom::default(), parse_opts)
-            .from_utf8()
-            .read_from(&mut buf)?;
+        let document = parse_html().one(self.content.as_str());
 
-        walk_and_edit(&self.url, &mut parsed.document, &self.resource_map);
+        // Replace images
+        for element in document.select("img").unwrap() {
+            let node = element.as_node();
+            if let NodeData::Element(data) = node.data() {
+                let mut attr = data.attributes.borrow_mut();
+                if let Some(u) = attr.get_mut("src") {
+                    if let Ok(url) = self.url.join(u) {
+                        *u = "HELLO!".to_string();
+                    }
+                }
+            }
+        }
 
-        let doc: SerializableHandle = parsed.document.into();
-        let mut output = Vec::new(); //String::new().as_bytes_mut();
-        serialize(&mut output, &doc, Default::default())?;
-
-        Ok(String::from_utf8(output)?)
+        Ok(document.to_string())
     }
 
     pub fn write_to_disk<P: AsRef<Path>>(
@@ -44,38 +42,6 @@ impl PageArchive {
     ) -> Result<(), io::Error> {
         todo!()
     }
-}
-
-fn walk_and_edit(
-    url_base: &Url,
-    node: &mut Handle,
-    resource_map: &ResourceMap,
-) {/*
-    match &node.data {
-        NodeData::Element { name, attrs, .. } => match name.local {
-            local_name!("img") => {
-                // <img src="/images/fun.png" />
-                for attr in attrs.borrow_mut().iter_mut() {
-                    if attr.name == *SRC {
-                        // "join" just sets the default base URL to be
-                        // `url_base`. If `attr.value` is a fully
-                        // qualified URL then that will override the
-                        // base
-                        if let Ok(u) = url_base.join(&attr.value) {
-                            if let Some(data) = resource_map.get(&u) {
-                                // Subsititute in the data URL
-                                attr.value =
-                                    "http://the_game.example.com".into();
-                            }
-                        }
-                    }
-                }
-            }
-
-            _ => { /* Other element names */ }
-        },
-        _ => { /* Other node types */ }
-    }*/
 }
 
 #[cfg(test)]

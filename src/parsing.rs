@@ -1,127 +1,62 @@
 use crate::error::Error;
 use bytes::Bytes;
-use html5ever::tendril::{Tendril, TendrilSink};
-use html5ever::{parse_document, ParseOpts};
-use lazy_static::lazy_static;
-use markup5ever::{local_name, Namespace, QualName};
-use markup5ever_rcdom::{Handle, NodeData, RcDom};
+use kuchiki::traits::TendrilSink;
+use kuchiki::{parse_html, NodeData};
 use std::collections::HashMap;
 use url::Url;
-
-lazy_static! {
-    pub(crate) static ref SRC: QualName =
-        QualName::new(None, Namespace::from(""), local_name!("src"),);
-    pub(crate) static ref REL: QualName =
-        QualName::new(None, Namespace::from(""), local_name!("rel"),);
-    pub(crate) static ref HREF: QualName =
-        QualName::new(None, Namespace::from(""), local_name!("href"),);
-}
 
 pub(crate) fn parse_resource_urls(
     url_base: &Url,
     page: &str,
 ) -> Result<Vec<ResourceUrl>, Error> {
-    let mut buf = page.as_bytes();
+    let document = parse_html().one(page);
 
-    let parse_opts: ParseOpts = Default::default();
+    // Collect resource URLs for each element type
+    let mut resource_urls = Vec::new();
 
-    let parsed = parse_document(RcDom::default(), parse_opts)
-        .from_utf8()
-        .read_from(&mut buf)?;
+    for element in document.select("img").unwrap() {
+        let node = element.as_node();
+        if let NodeData::Element(data) = node.data() {
+            let attr = data.attributes.borrow();
+            if let Some(u) = attr.get("src") {
+                if let Ok(u) = url_base.join(u) {
+                    resource_urls.push(ResourceUrl::Image(u));
+                }
+            }
+        }
+    }
 
-    // Recursively walk the DOM, collecting any supported resource URLs
-    let mut resource_urls = walk_dom(&url_base, &parsed.document);
+    for element in document.select("link").unwrap() {
+        let node = element.as_node();
+        if let NodeData::Element(data) = node.data() {
+            let attr = data.attributes.borrow();
+            if Some("stylesheet") == attr.get("rel") {
+                if let Some(u) = attr.get("href") {
+                    if let Ok(u) = url_base.join(u) {
+                        resource_urls.push(ResourceUrl::Css(u));
+                    }
+                }
+            }
+        }
+    }
+
+    for element in document.select("script").unwrap() {
+        let node = element.as_node();
+        if let NodeData::Element(data) = node.data() {
+            let attr = data.attributes.borrow();
+            if let Some(u) = attr.get("src") {
+                if let Ok(u) = url_base.join(u) {
+                    resource_urls.push(ResourceUrl::Javascript(u));
+                }
+            }
+        }
+    }
 
     // Dedup the URLs to avoid fetching the same one twice
     resource_urls.sort();
     resource_urls.dedup();
 
     Ok(resource_urls)
-}
-
-fn walk_dom(url_base: &Url, node: &Handle) -> Vec<ResourceUrl> {
-    // prepare a vec to collect the data
-    let mut resource_urls = Vec::new();
-
-    // Determine what type of node it is
-    match &node.data {
-        NodeData::Element { name, attrs, .. } => match name.local {
-            local_name!("img") => {
-                // <img src="/images/fun.png" />
-                for attr in attrs.borrow().iter() {
-                    if attr.name == *SRC {
-                        // "join" just sets the default base URL to be
-                        // `url_base`. If `attr.value` is a fully
-                        // qualified URL then that will override the
-                        // base
-                        if let Ok(u) = url_base.join(&attr.value) {
-                            // Only save URLs that parse properly
-                            resource_urls.push(ResourceUrl::Image(u));
-                        }
-                    }
-                }
-            }
-            local_name!("script") => {
-                // <script language="javascript" src="/js.js"></script>
-                for attr in attrs.borrow().iter() {
-                    if attr.name == *SRC {
-                        // "join" just sets the default base URL to be
-                        // `url_base`. If `attr.value` is a fully
-                        // qualified URL then that will override the
-                        // base
-                        if let Ok(u) = url_base.join(&attr.value) {
-                            // Only save URLs that parse properly
-                            resource_urls.push(ResourceUrl::Javascript(u));
-                        }
-                    }
-                }
-            }
-            local_name!("link") => {
-                // <link rel="stylesheet" type="text/css" href="/style.css" />
-                // Probably need to check that `rel == stylesheet` before
-                // committing to storing the URL
-                let mut is_stylesheet = false;
-                let mut url: Option<Url> = None;
-                for attr in attrs.borrow().iter() {
-                    if attr.name == *HREF {
-                        // "join" just sets the default base URL to be
-                        // `url_base`. If `attr.value` is a fully
-                        // qualified URL then that will override the
-                        // base
-                        if let Ok(u) = url_base.join(&attr.value) {
-                            url = Some(u);
-                        }
-                    } else if attr.name == *REL {
-                        if attr.value == Tendril::from("stylesheet") {
-                            is_stylesheet = true;
-                        }
-                    }
-                }
-
-                if is_stylesheet {
-                    if let Some(u) = url {
-                        resource_urls.push(ResourceUrl::Css(u));
-                    }
-                }
-            }
-            _ => { /* Other element names */ }
-        },
-        _ => { /* Other node types */ }
-    }
-
-    for child in
-        node.children
-            .borrow()
-            .iter()
-            .filter(|child| match child.data {
-                NodeData::Text { .. } | NodeData::Element { .. } => true,
-                _ => false,
-            })
-    {
-        resource_urls.append(&mut walk_dom(&url_base, &child));
-    }
-
-    resource_urls
 }
 
 #[derive(Debug, PartialEq, Eq, Ord)]
