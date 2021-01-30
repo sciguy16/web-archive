@@ -1,3 +1,5 @@
+use std::string::FromUtf8Error;
+
 #[derive(Debug)]
 pub enum Error {
     ParseError(String),
@@ -12,6 +14,12 @@ impl From<reqwest::Error> for Error {
 
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {
+        Self::ParseError(e.to_string())
+    }
+}
+
+impl From<FromUtf8Error> for Error {
+    fn from(e: FromUtf8Error) -> Self {
         Self::ParseError(e.to_string())
     }
 }

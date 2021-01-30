@@ -49,6 +49,7 @@ where
     }
 
     Ok(PageArchive {
+        url,
         content,
         resource_map,
     })

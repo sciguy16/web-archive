@@ -9,11 +9,11 @@ use std::collections::HashMap;
 use url::Url;
 
 lazy_static! {
-    static ref SRC: QualName =
+    pub(crate) static ref SRC: QualName =
         QualName::new(None, Namespace::from(""), local_name!("src"),);
-    static ref REL: QualName =
+    pub(crate) static ref REL: QualName =
         QualName::new(None, Namespace::from(""), local_name!("rel"),);
-    static ref HREF: QualName =
+    pub(crate) static ref HREF: QualName =
         QualName::new(None, Namespace::from(""), local_name!("href"),);
 }
 
@@ -104,9 +104,9 @@ fn walk_dom(url_base: &Url, node: &Handle) -> Vec<ResourceUrl> {
                     }
                 }
             }
-            _ => {}
+            _ => { /* Other element names */ }
         },
-        _ => {}
+        _ => { /* Other node types */ }
     }
 
     for child in

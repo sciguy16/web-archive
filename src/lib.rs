@@ -1,3 +1,14 @@
+#![warn(
+//    missing_docs,
+    missing_debug_implementations,
+    missing_copy_implementations,
+    trivial_casts,
+    trivial_numeric_casts,
+    unused_import_braces,
+    unused_qualifications,
+    variant_size_differences
+)]
+
 pub use error::Error;
 pub use page_archive::PageArchive;
 use parsing::{parse_resource_urls, Resource, ResourceMap, ResourceUrl};
@@ -57,6 +68,7 @@ where
     }
 
     Ok(PageArchive {
+        url,
         content,
         resource_map,
     })
