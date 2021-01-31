@@ -29,6 +29,18 @@ println!("{}", page);
 ```
 
 
+## Testing
+The main library contains unit tests for the parsing functionality, and dynamic
+tests against a local webserver are in the [dynamic_tests](dynamic_tests)
+directory. The dynamic tests are built with Rocket which requires Nightly
+Rust, however the main library builds on Stable.
+
+```bash
+cargo test
+cd dynamic_tests && cargo run
+```
+
+
 ## License
 
 Licensed under either of
