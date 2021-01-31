@@ -14,7 +14,7 @@ use std::string::FromUtf8Error;
 /// parsing or network errors).
 #[derive(Debug)]
 pub enum Error {
-	/// Some kind of parsing error
+    /// Some kind of parsing error
     ParseError(String),
     /// Error fetching a resource
     ReqwestError(String),
