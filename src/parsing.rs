@@ -13,6 +13,31 @@ use kuchiki::{parse_html, NodeData};
 use std::collections::HashMap;
 use url::Url;
 
+// https://github.com/Y2Z/monolith/blob/fa71f6a42c94df4c48d01819922afe1248eabad5/src/utils.rs#L13
+const MAGIC: [(&[u8], &str); 18] = [
+    // Image
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+    (b"\xFF\xD8\xFF", "image/jpeg"),
+    (b"\x89PNG\x0D\x0A\x1A\x0A", "image/png"),
+    (b"<svg ", "image/svg+xml"),
+    (b"RIFF....WEBPVP8 ", "image/webp"),
+    (b"\x00\x00\x01\x00", "image/x-icon"),
+    // Audio
+    (b"ID3", "audio/mpeg"),
+    (b"\xFF\x0E", "audio/mpeg"),
+    (b"\xFF\x0F", "audio/mpeg"),
+    (b"OggS", "audio/ogg"),
+    (b"RIFF....WAVEfmt ", "audio/wav"),
+    (b"fLaC", "audio/x-flac"),
+    // Video
+    (b"RIFF....AVI LIST", "video/avi"),
+    (b"....ftyp", "video/mp4"),
+    (b"\x00\x00\x01\x0B", "video/mpeg"),
+    (b"....moov", "video/quicktime"),
+    (b"\x1A\x45\xDF\xA3", "video/webm"),
+];
+
 /// Search image, style, and script resources and store their URIs
 pub(crate) fn parse_resource_urls(
     url_base: &Url,
@@ -135,6 +160,21 @@ impl ImageResource {
         let encoded = base64::encode(&self.data);
         format!("data:{};base64,{}", self.mimetype, encoded)
     }
+}
+
+// https://github.com/Y2Z/monolith/blob/fa71f6a42c94df4c48d01819922afe1248eabad5/src/utils.rs#L44
+pub(crate) fn mimetype_from_response(data: &[u8], url: &Url) -> String {
+    for item in MAGIC.iter() {
+        if data.starts_with(item.0) {
+            return item.1.to_string();
+        }
+    }
+
+    if url.path().to_lowercase().ends_with(".svg") {
+        return "image/svg+xml".to_string();
+    }
+
+    "".to_string()
 }
 
 #[cfg(test)]
@@ -380,5 +420,21 @@ mod test {
 
         assert_eq!(resource_urls.len(), 2);
         assert_eq!(resource_urls, test_urls);
+    }
+
+    #[test]
+    fn test_mimetype_detection() {
+        let data: &[u8] = include_bytes!(
+            "../dynamic_tests/resources/rustacean-flat-happy.png"
+        );
+        let url = Url::parse("http://example.com/ferris.png").unwrap();
+        let mimetype = mimetype_from_response(&data, &url);
+        assert_eq!(mimetype, "image/png");
+
+        let data: &[u8] =
+            include_bytes!("../dynamic_tests/resources/rust-logo-blk.svg");
+        let url = Url::parse("http://example.com/rust.svg").unwrap();
+        let mimetype = mimetype_from_response(&data, &url);
+        assert_eq!(mimetype, "image/svg+xml");
     }
 }

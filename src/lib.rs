@@ -51,7 +51,7 @@
 
 pub use error::Error;
 pub use page_archive::PageArchive;
-use parsing::parse_resource_urls;
+use parsing::{mimetype_from_response, parse_resource_urls};
 pub use parsing::{ImageResource, Resource, ResourceMap, ResourceUrl};
 use reqwest::StatusCode;
 use std::convert::TryInto;
@@ -100,12 +100,12 @@ where
         }
         match resource_url {
             Image(u) => {
+                // Get mimetype of image
+                let data = response.bytes().await?;
+                let mimetype = mimetype_from_response(&data, &u);
                 resource_map.insert(
                     u,
-                    Resource::Image(ImageResource {
-                        data: response.bytes().await?,
-                        mimetype: String::new(),
-                    }),
+                    Resource::Image(ImageResource { data, mimetype }),
                 );
             }
             Css(u) => {

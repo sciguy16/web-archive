@@ -116,7 +116,7 @@ fn test_blog(mode: &Mode) -> &'static str {
             .unwrap(),
         &Resource::Image(ImageResource {
             data: Bytes::copy_from_slice(rust_logo()),
-            mimetype: "".to_string()
+            mimetype: "image/svg+xml".to_string()
         })
     );
     assert_eq!(
@@ -130,7 +130,7 @@ fn test_blog(mode: &Mode) -> &'static str {
             .unwrap(),
         &Resource::Image(ImageResource {
             data: Bytes::copy_from_slice(ferris()),
-            mimetype: "".to_string()
+            mimetype: "image/png".to_string()
         })
     );
     assert!(a
