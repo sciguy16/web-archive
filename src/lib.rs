@@ -107,7 +107,11 @@ where
         .map_err(|e| Error::ParseError(format!("{}", e)))?;
 
     // Initialise client
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+    	.use_native_tls()
+    	.danger_accept_invalid_certs(options.accept_invalid_certificates)
+    	.danger_accept_invalid_hostnames(options.accept_invalid_certificates)
+    	.build()?;
 
     // Fetch the page contents
     let content = client.get(url.clone()).send().await?.text().await?;
@@ -157,7 +161,10 @@ pub struct ArchiveOptions {
     /// Accept invalid certificates or certificates that do not match
     /// the requested hostname. For example, performing an HTTPS request
     /// against an IP address will more than likely result in a hostname
-    /// mismatch
+    /// mismatch.
+    ///
+    /// Corresponds to [`reqwest::ClientBuilder::danger_accept_invalid_certs`]
+    /// and [`reqwest::ClientBuilder::danger_accept_invalid_hostnames`].
     ///
     /// Default: `false`
     pub accept_invalid_certificates: bool,

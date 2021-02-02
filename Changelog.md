@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 * Mimetype is detected from the magic bytes at the start of images [#1](https://github.com/sciguy16/web-archive/issues/1)
+* Added `ArchiveOptions` parameter with an option to disable host certificate verification [#2](https://github.com/sciguy16/web-archive/issues/2)
 
 ### Changed
 
