@@ -108,10 +108,10 @@ where
 
     // Initialise client
     let client = reqwest::Client::builder()
-    	.use_native_tls()
-    	.danger_accept_invalid_certs(options.accept_invalid_certificates)
-    	.danger_accept_invalid_hostnames(options.accept_invalid_certificates)
-    	.build()?;
+        .use_native_tls()
+        .danger_accept_invalid_certs(options.accept_invalid_certificates)
+        .danger_accept_invalid_hostnames(options.accept_invalid_certificates)
+        .build()?;
 
     // Fetch the page contents
     let content = client.get(url.clone()).send().await?.text().await?;
