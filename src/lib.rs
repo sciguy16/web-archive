@@ -25,7 +25,9 @@
 //!
 //! # async fn archive_async() {
 //! // Fetch page and all its resources
-//! let archive = archive("http://example.com").await.unwrap();
+//! let archive = archive("http://example.com", Default::default())
+//!     .await
+//!     .unwrap();
 //!
 //! // Embed the resources into the page
 //! let page = archive.embed_resources();
@@ -40,7 +42,8 @@
 //! use web_archive::blocking;
 //!
 //! // Fetch page and all its resources
-//! let archive = blocking::archive("http://example.com").unwrap();
+//! let archive =
+//!     blocking::archive("http://example.com", Default::default()).unwrap();
 //!
 //! // Embed the resources into the page
 //! let page = archive.embed_resources();
@@ -48,6 +51,27 @@
 //!
 //! ```
 //!
+//! ### Ignore certificate errors (dangerous!)
+//!
+//! ```no_run
+//! use web_archive::{archive, ArchiveOptions};
+//!
+//! # async fn archive_async() {
+//! // Fetch page and all its resources
+//! let archive_options = ArchiveOptions {
+//!     accept_invalid_certificates: true,
+//!     ..Default::default()
+//! };
+//! let archive = archive("http://example.com", archive_options)
+//!     .await
+//!     .unwrap();
+//!
+//! // Embed the resources into the page
+//! let page = archive.embed_resources();
+//! println!("{}", page);
+//! # }
+//!
+//! ```
 
 pub use error::Error;
 pub use page_archive::PageArchive;
@@ -70,7 +94,10 @@ pub mod blocking;
 /// Takes in a URL and attempts to download the page and its resources.
 /// Network errors get wrapped in [`Error`] and returned as the `Err`
 /// case.
-pub async fn archive<U>(url: U) -> Result<PageArchive, Error>
+pub async fn archive<U>(
+    url: U,
+    options: ArchiveOptions,
+) -> Result<PageArchive, Error>
 where
     U: TryInto<Url>,
     <U as TryInto<Url>>::Error: Display,
@@ -125,6 +152,25 @@ where
     })
 }
 
+/// Configuration options to control aspects of the archiving behaviour.
+pub struct ArchiveOptions {
+    /// Accept invalid certificates or certificates that do not match
+    /// the requested hostname. For example, performing an HTTPS request
+    /// against an IP address will more than likely result in a hostname
+    /// mismatch
+    ///
+    /// Default: `false`
+    pub accept_invalid_certificates: bool,
+}
+
+impl Default for ArchiveOptions {
+    fn default() -> Self {
+        Self {
+            accept_invalid_certificates: false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -134,7 +180,7 @@ mod tests {
     fn parse_invalid_url_async() {
         let u = "this~is~not~a~url";
 
-        let res = block_on(archive(u));
+        let res = block_on(archive(u, Default::default()));
         assert!(res.is_err());
 
         if let Err(Error::ParseError(_err)) = res {

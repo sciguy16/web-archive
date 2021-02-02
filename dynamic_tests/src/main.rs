@@ -69,8 +69,8 @@ fn test_index(mode: &Mode) -> &'static str {
     let u = "http://localhost:8000/";
 
     let a = match mode {
-        Mode::Blocking => blocking::archive(u).unwrap(),
-        Mode::Async => block_on(archive(u)).unwrap(),
+        Mode::Blocking => blocking::archive(u, Default::default()).unwrap(),
+        Mode::Async => block_on(archive(u, Default::default())).unwrap(),
     };
 
     assert_eq!(a.content, index());
@@ -88,8 +88,8 @@ fn test_blog(mode: &Mode) -> &'static str {
     let u = "http://localhost:8000/pages/blog.html";
 
     let a = match mode {
-        Mode::Blocking => blocking::archive(u).unwrap(),
-        Mode::Async => block_on(archive(u)).unwrap(),
+        Mode::Blocking => blocking::archive(u, Default::default()).unwrap(),
+        Mode::Async => block_on(archive(u, Default::default())).unwrap(),
     };
 
     assert_eq!(a.content, blog());
@@ -144,16 +144,16 @@ fn test_blog(mode: &Mode) -> &'static str {
 fn test_500(mode: &Mode) -> &'static str {
     let u = "http://localhost:8000/500.jpg";
     let a = match mode {
-        Mode::Blocking => blocking::archive(u).unwrap(),
-        Mode::Async => block_on(archive(u)).unwrap(),
+        Mode::Blocking => blocking::archive(u, Default::default()).unwrap(),
+        Mode::Async => block_on(archive(u, Default::default())).unwrap(),
     };
 
     assert!(a.resource_map.is_empty());
 
     let u = "http://localhost:8000/500.html";
     let a = match mode {
-        Mode::Blocking => blocking::archive(u).unwrap(),
-        Mode::Async => block_on(archive(u)).unwrap(),
+        Mode::Blocking => blocking::archive(u, Default::default()).unwrap(),
+        Mode::Async => block_on(archive(u, Default::default())).unwrap(),
     };
 
     assert_eq!(a.content, page_with_500_resource().to_string());

@@ -13,7 +13,8 @@
 //! use web_archive::blocking;
 //!
 //! // Fetch page and all its resources
-//! let archive = blocking::archive("http://example.com").unwrap();
+//! let archive = blocking::archive("http://example.com", Default::default())
+//!     .unwrap();
 //!
 //! // Embed the resources into the page
 //! let page = archive.embed_resources();
@@ -27,6 +28,7 @@ use crate::parsing::{
     mimetype_from_response, parse_resource_urls, ImageResource, Resource,
     ResourceMap, ResourceUrl,
 };
+use crate::ArchiveOptions;
 use reqwest::StatusCode;
 use std::convert::TryInto;
 use std::fmt::Display;
@@ -37,7 +39,7 @@ use url::Url;
 /// Takes in a URL and attempts to download the page and its resources.
 /// Network errors get wrapped in [`Error`] and returned as the `Err`
 /// case.
-pub fn archive<U>(url: U) -> Result<PageArchive, Error>
+pub fn archive<U>(url: U, options: ArchiveOptions) -> Result<PageArchive, Error>
 where
     U: TryInto<Url>,
     <U as TryInto<Url>>::Error: Display,
@@ -99,7 +101,7 @@ mod tests {
     fn parse_invalid_url_blocking() {
         let u = "this~is~not~a~url";
 
-        let res = archive(u);
+        let res = archive(u, Default::default());
         assert!(res.is_err());
 
         if let Err(Error::ParseError(_err)) = res {
