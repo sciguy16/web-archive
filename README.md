@@ -20,10 +20,10 @@ use web_archive::{archive, blocking};
 // Build a collection of linked resources attached to the page
 
 // async API
-let archive = archive("http://example.com").await.unwrap();
+let archive = archive("http://example.com", Default::default()).await.unwrap();
 
 // blocking API
-let archive = blocking::archive("http://example.com").unwrap();
+let archive = blocking::archive("http://example.com", Default::default()).unwrap();
 
 
 // Embed the resources into the HTML
