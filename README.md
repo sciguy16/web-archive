@@ -11,7 +11,7 @@ css, js) for local use.
 ## Example
 
 ```toml
-web-archive = "0.1.0"
+web-archive = "0.2.0"
 ```
 
 ```rust
