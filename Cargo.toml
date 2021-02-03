@@ -1,6 +1,6 @@
 [package]
 name = "web-archive"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["David Young <david@thedavidyoung.co.uk>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -12,6 +12,7 @@ description = "Download image, script, and CSS resources and embed them into a w
 [features]
 default = ["blocking"]
 blocking = ["reqwest/blocking"]
+socks = ["reqwest/socks"]
 
 [dependencies]
 base64 = "0.13.0"

@@ -77,7 +77,7 @@ pub use error::Error;
 pub use page_archive::PageArchive;
 use parsing::{mimetype_from_response, parse_resource_urls};
 pub use parsing::{ImageResource, Resource, ResourceMap, ResourceUrl};
-use reqwest::StatusCode;
+use reqwest::{Proxy, StatusCode};
 use std::convert::TryInto;
 use std::fmt::Display;
 use url::Url;
@@ -96,7 +96,7 @@ pub mod blocking;
 /// case.
 pub async fn archive<U>(
     url: U,
-    options: ArchiveOptions,
+    options: ArchiveOptions<'_>,
 ) -> Result<PageArchive, Error>
 where
     U: TryInto<Url>,
@@ -107,11 +107,14 @@ where
         .map_err(|e| Error::ParseError(format!("{}", e)))?;
 
     // Initialise client
-    let client = reqwest::Client::builder()
+    let mut client = reqwest::Client::builder()
         .use_native_tls()
         .danger_accept_invalid_certs(options.accept_invalid_certificates)
-        .danger_accept_invalid_hostnames(options.accept_invalid_certificates)
-        .build()?;
+        .danger_accept_invalid_hostnames(options.accept_invalid_certificates);
+    if let Some(proxy) = options.proxy {
+        client = client.proxy(Proxy::all(proxy)?);
+    }
+    let client = client.build()?;
 
     // Fetch the page contents
     let content = client.get(url.clone()).send().await?.text().await?;
@@ -157,7 +160,7 @@ where
 }
 
 /// Configuration options to control aspects of the archiving behaviour.
-pub struct ArchiveOptions {
+pub struct ArchiveOptions<'a> {
     /// Accept invalid certificates or certificates that do not match
     /// the requested hostname. For example, performing an HTTPS request
     /// against an IP address will more than likely result in a hostname
@@ -167,13 +170,39 @@ pub struct ArchiveOptions {
     /// and [`reqwest::ClientBuilder::danger_accept_invalid_hostnames`].
     ///
     /// Default: `false`
+    ///
+    /// ## Example
+    /// ```
+    /// use web_archive::ArchiveOptions;
+    /// let options = ArchiveOptions {
+    ///     accept_invalid_certificates: true,
+    ///     ..Default::default()
+    /// };
+    /// ```
     pub accept_invalid_certificates: bool,
+    /// Connect via specified proxy. Accepts HTTP/HTTPS proxies, and if
+    /// the `socks` feature is enabled then SOCKS proxies may also be
+    /// specified.
+    ///
+    /// Default: `None`
+    /// Related feature: `features = ["socks"]`
+    ///
+    /// ## Example
+    /// ```
+    /// use web_archive::ArchiveOptions;
+    /// let options = ArchiveOptions {
+    ///     proxy: Some("http://localhost:8080"),
+    ///     ..Default::default()
+    /// };
+    /// ```
+    pub proxy: Option<&'a str>,
 }
 
-impl Default for ArchiveOptions {
+impl<'a> Default for ArchiveOptions<'a> {
     fn default() -> Self {
         Self {
             accept_invalid_certificates: false,
+            proxy: None,
         }
     }
 }

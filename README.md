@@ -11,7 +11,7 @@ css, js) for local use.
 ## Example
 
 ```toml
-web-archive = "0.2.0"
+web-archive = "0.3.0"
 ```
 
 ```rust
@@ -32,6 +32,10 @@ let page = archive.embed_resources();
 println!("{}", page);
 ```
 
+
+## Feature flags
+* `blocking` - enable the Blocking API
+* `socks` - enable SOCKS proxy support
 
 ## Testing
 The main library contains unit tests for the parsing functionality, and dynamic

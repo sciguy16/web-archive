@@ -29,7 +29,7 @@ use crate::parsing::{
     ResourceMap, ResourceUrl,
 };
 use crate::ArchiveOptions;
-use reqwest::StatusCode;
+use reqwest::{Proxy, StatusCode};
 use std::convert::TryInto;
 use std::fmt::Display;
 use url::Url;
@@ -49,11 +49,14 @@ where
         .map_err(|e| Error::ParseError(format!("{}", e)))?;
 
     // Initialise client
-    let client = reqwest::blocking::Client::builder()
+    let mut client = reqwest::blocking::Client::builder()
         .use_native_tls()
         .danger_accept_invalid_certs(options.accept_invalid_certificates)
-        .danger_accept_invalid_hostnames(options.accept_invalid_certificates)
-        .build()?;
+        .danger_accept_invalid_hostnames(options.accept_invalid_certificates);
+    if let Some(proxy) = options.proxy {
+        client = client.proxy(Proxy::all(proxy)?);
+    }
+    let client = client.build()?;
 
     // Fetch the page contents
     let content = client.get(url.clone()).send()?.text()?;
